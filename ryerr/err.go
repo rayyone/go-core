@@ -1,13 +1,14 @@
-package errors
+package ryerr
 
 import (
 	"fmt"
+	"runtime"
 	"strconv"
 
-	loghelper "github.com/rayyone/go-core/helpers/log"
-	"github.com/rayyone/go-core/helpers/method"
-	"github.com/getsentry/sentry-go"
+	sentry "github.com/getsentry/sentry-go"
 	"github.com/pkg/errors"
+	loghelper "github.com/rayyone/go-core/helpers/log"
+	"gorm.io/gorm"
 )
 
 // ErrorType is the type of an error
@@ -19,13 +20,14 @@ const (
 	InternalServer      ErrorType = 500
 	BadRequest          ErrorType = 400
 	Unauthorized        ErrorType = 401
+	Forbidden           ErrorType = 403
 	NotFound            ErrorType = 404
 	Validation          ErrorType = 422
 	UnprocessableEntity ErrorType = 422
 	TooManyRequests     ErrorType = 429
 )
 
-type CustomError struct {
+type Err struct {
 	errorType     ErrorType
 	originalError error
 	contexts      []errorContext
@@ -37,11 +39,15 @@ type errorContext struct {
 	Message string
 }
 
-// New creates a new CustomError
+func (c Err) Error() string {
+	return c.originalError.Error()
+}
+
+// New creates a new Err
 func (errorType ErrorType) New(msg string) error {
 	loghelper.PrintRed(msg)
 	shouldReport := shouldReport(errorType)
-	customErr := CustomError{errorType: errorType, originalError: errors.New(msg), stackTrace: []string{msg}}
+	customErr := Err{errorType: errorType, originalError: errors.New(msg), stackTrace: []string{msg}}
 	if shouldReport {
 		customErr.Report()
 	}
@@ -49,20 +55,20 @@ func (errorType ErrorType) New(msg string) error {
 	return customErr
 }
 
-// NewAndReport creates a new CustomError and report
+// NewAndReport creates a new Err and report
 func (errorType ErrorType) NewAndReport(msg string) error {
 	loghelper.PrintRed(msg)
-	customErr := CustomError{errorType: errorType, originalError: errors.New(msg), stackTrace: []string{msg}}
+	customErr := Err{errorType: errorType, originalError: errors.New(msg), stackTrace: []string{msg}}
 	customErr.Report()
 
 	return customErr
 }
 
-// Newf creates a new CustomError with formatted message
+// Newf creates a new Err with formatted message
 func (errorType ErrorType) Newf(msg string, args ...interface{}) error {
 	loghelper.PrintRed(fmt.Sprintf(msg, args...))
 	shouldReport := shouldReport(errorType)
-	customErr := CustomError{errorType: errorType, originalError: fmt.Errorf(msg, args...), stackTrace: []string{msg}}
+	customErr := Err{errorType: errorType, originalError: fmt.Errorf(msg, args...), stackTrace: []string{msg}}
 	if shouldReport {
 		customErr.Report()
 	}
@@ -70,10 +76,10 @@ func (errorType ErrorType) Newf(msg string, args ...interface{}) error {
 	return customErr
 }
 
-// NewfAndReport creates a new CustomError with formatted message and report
+// NewfAndReport creates a new Err with formatted message and report
 func (errorType ErrorType) NewfAndReport(msg string, args ...interface{}) error {
 	loghelper.PrintRed(fmt.Sprintf(msg, args...))
-	customErr := CustomError{errorType: errorType, originalError: fmt.Errorf(msg, args...), stackTrace: []string{msg}}
+	customErr := Err{errorType: errorType, originalError: fmt.Errorf(msg, args...), stackTrace: []string{msg}}
 	customErr.Report()
 
 	return customErr
@@ -101,19 +107,14 @@ func (errorType ErrorType) Wrap(err error, msg string) error {
 
 // Wrapf creates a new wrapped error with formatted message
 func (errorType ErrorType) Wrapf(err error, msg string, args ...interface{}) error {
-	return CustomError{errorType: errorType, originalError: errors.Wrapf(err, msg, args...)}
+	return Err{errorType: errorType, originalError: errors.Wrapf(err, msg, args...)}
 }
 
-// Error returns the mssage of a CustomError
-func (error CustomError) Error() string {
-	return error.originalError.Error()
-}
-
-func (error CustomError) Report() {
+func (c Err) Report() {
 	loghelper.PrintRed("========== Error Stack Strace ==========")
 	var stackTrace []string
 	for i := 4; i < 9; i++ { // Skip 4 function, Get last 5 error trace
-		file, line, fnName := method.TraceCaller(i)
+		file, line, fnName := traceCaller(i)
 		traceMsg := fmt.Sprintf("%s:%d@%s", file, line, fnName)
 		loghelper.PrintYellow(traceMsg)
 		stackTrace = append(stackTrace, traceMsg)
@@ -122,23 +123,23 @@ func (error CustomError) Report() {
 	sentry.ConfigureScope(func(scope *sentry.Scope) {
 		scope.SetExtra("stack_trace", stackTrace)
 	})
-	sentry.CaptureException(error)
+	sentry.CaptureException(c)
 }
 
 // New creates a no type error and report to sentry
 func New(msg string) error {
 	loghelper.PrintRed(msg)
-	err := CustomError{errorType: NoType, originalError: errors.New(msg)}
+	err := Err{errorType: NoType, originalError: errors.New(msg)}
 
 	err.Report()
 
 	return err
 }
 
-// NewAndDontReport creates a new CustomError and don't report it
+// NewAndDontReport creates a new Err and don't report it
 func NewAndDontReport(msg string) error {
 	loghelper.PrintRed(msg)
-	err := CustomError{errorType: NoType, originalError: errors.New(msg)}
+	err := Err{errorType: NoType, originalError: errors.New(msg)}
 
 	return err
 }
@@ -146,7 +147,7 @@ func NewAndDontReport(msg string) error {
 // Newf creates a no type error with formatted message
 func Newf(msg string, args ...interface{}) error {
 	loghelper.PrintRed(fmt.Sprintf(msg, args...))
-	err := CustomError{errorType: NoType, originalError: errors.New(fmt.Sprintf(msg, args...))}
+	err := Err{errorType: NoType, originalError: errors.New(fmt.Sprintf(msg, args...))}
 
 	err.Report()
 
@@ -154,10 +155,10 @@ func Newf(msg string, args ...interface{}) error {
 }
 
 func Msg(err error, msg string) error {
-	fileName, line, fnName := method.TraceCaller(3)
+	fileName, line, fnName := traceCaller(3)
 	errorMsg := fmt.Sprintf("%s:%d@%s()", fileName, line, fnName)
-	if customErr, ok := err.(CustomError); ok {
-		return CustomError{
+	if customErr, ok := err.(Err); ok {
+		return Err{
 			errorType:     customErr.errorType,
 			originalError: errors.New(msg),
 			contexts:      customErr.contexts,
@@ -165,7 +166,7 @@ func Msg(err error, msg string) error {
 		}
 	}
 
-	return CustomError{errorType: NoType, originalError: errors.New(msg), stackTrace: []string{errorMsg}}
+	return Err{errorType: NoType, originalError: errors.New(msg), stackTrace: []string{errorMsg}}
 }
 
 // Wrap an error with a string
@@ -176,8 +177,8 @@ func Wrap(err error, msg string) error {
 // Wrapf an error with format string
 func Wrapf(err error, msg string, args ...interface{}) error {
 	wrappedError := errors.Wrapf(err, msg, args...)
-	if customErr, ok := err.(CustomError); ok {
-		return CustomError{
+	if customErr, ok := err.(Err); ok {
+		return Err{
 			errorType:     customErr.errorType,
 			originalError: wrappedError,
 			contexts:      customErr.contexts,
@@ -185,28 +186,28 @@ func Wrapf(err error, msg string, args ...interface{}) error {
 		}
 	}
 
-	return CustomError{errorType: NoType, originalError: wrappedError}
+	return Err{errorType: NoType, originalError: wrappedError}
 }
 
 // Cause gives the original error
 func Cause(err error) error {
-	return errors.Cause(err)
+	return errors.Cause(err).(Err)
 }
 
 // AddStackTrace an error with format string
 func AddStackTrace(err error, msg string) error {
-	if customErr, ok := err.(CustomError); ok {
+	if customErr, ok := err.(Err); ok {
 		stackTrace := append([]string{msg}, customErr.stackTrace...)
-		return CustomError{errorType: customErr.errorType, originalError: customErr.originalError, contexts: customErr.contexts, stackTrace: stackTrace}
+		return Err{errorType: customErr.errorType, originalError: customErr.originalError, contexts: customErr.contexts, stackTrace: stackTrace}
 	}
 
 	stackTrace := []string{msg}
-	return CustomError{errorType: NoType, originalError: err, stackTrace: stackTrace}
+	return Err{errorType: NoType, originalError: err, stackTrace: stackTrace}
 }
 
 // GetStackTrace returns the error stack trace
 func GetStackTrace(err error) []string {
-	if customErr, ok := err.(CustomError); ok {
+	if customErr, ok := err.(Err); ok {
 		return customErr.stackTrace
 	}
 	return []string{}
@@ -215,19 +216,19 @@ func GetStackTrace(err error) []string {
 // AddErrorContext adds a context to an error
 func AddErrorContext(err error, field string, message string) error {
 	context := errorContext{Field: field, Message: message}
-	if customErr, ok := err.(CustomError); ok {
+	if customErr, ok := err.(Err); ok {
 		contexts := append(customErr.contexts, context)
-		return CustomError{errorType: customErr.errorType, originalError: customErr.originalError, contexts: contexts, stackTrace: customErr.stackTrace}
+		return Err{errorType: customErr.errorType, originalError: customErr.originalError, contexts: contexts, stackTrace: customErr.stackTrace}
 	}
 
 	contexts := []errorContext{context}
-	return CustomError{errorType: NoType, originalError: err, contexts: contexts}
+	return Err{errorType: NoType, originalError: err, contexts: contexts}
 }
 
 // GetErrorContexts returns the error context
 func GetErrorContexts(err error) map[string]string {
 	res := make(map[string]string)
-	if customErr, ok := err.(CustomError); ok {
+	if customErr, ok := err.(Err); ok {
 		for _, context := range customErr.contexts {
 			res[context.Field] = context.Message
 		}
@@ -237,7 +238,7 @@ func GetErrorContexts(err error) map[string]string {
 
 // GetType returns the error type
 func GetType(err error) ErrorType {
-	if customErr, ok := err.(CustomError); ok {
+	if customErr, ok := err.(Err); ok {
 		return customErr.errorType
 	}
 
@@ -251,7 +252,7 @@ func Is(err error, errorType ErrorType) bool {
 	}
 
 	errType := NoType
-	if customErr, ok := err.(CustomError); ok {
+	if customErr, ok := err.(Err); ok {
 		errType = customErr.errorType
 	}
 
@@ -263,9 +264,32 @@ func IsNotFound(err error) bool {
 	return Is(err, NotFound)
 }
 
+func IsRecordNotFound(err error) bool {
+	return errors.Is(err, gorm.ErrRecordNotFound)
+}
+
+func IsGormError(err error) bool {
+	return err != nil && !IsRecordNotFound(err)
+}
+
 func SetExtra(key string, value interface{}) {
 	//@TODO: Need to export to an interface!
 	sentry.ConfigureScope(func(scope *sentry.Scope) {
 		scope.SetExtra(key, value)
 	})
+}
+
+func traceCaller(skip int) (file string, line int, fnName string) {
+	pc := make([]uintptr, 10) // at least 1 entry needed
+	runtime.Callers(skip, pc)
+
+	if pc[0] == uintptr(0) {
+		return
+	}
+
+	f := runtime.FuncForPC(pc[0])
+	file, line = f.FileLine(pc[0])
+	fnName = f.Name()
+
+	return
 }

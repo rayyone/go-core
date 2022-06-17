@@ -6,13 +6,13 @@ import (
 	"path"
 	"time"
 
-	"github.com/rayyone/go-core/errors"
-	fileHelper "github.com/rayyone/go-core/helpers/file"
-	stgoption "github.com/rayyone/go-core/storage/option"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	fileHelper "github.com/rayyone/go-core/helpers/file"
+	"github.com/rayyone/go-core/ryerr"
+	stgoption "github.com/rayyone/go-core/storage/option"
 )
 
 // S3 S3 storage
@@ -49,7 +49,7 @@ func (s *S3) Store(file io.Reader, filename string, filePath string, opts ...stg
 	result, err := s.uploader.Upload(upParams)
 	if err != nil {
 		errMsg := fmt.Sprintf("Error: Cannot store file to S3. Error: %v", err)
-		return nil, errors.BadRequest.New(errMsg)
+		return nil, ryerr.BadRequest.New(errMsg)
 	}
 
 	return &result.Location, nil
@@ -68,7 +68,7 @@ func (s *S3) GetSignedUrl(key string, expireIn time.Duration, opts ...stgoption.
 	})
 	url, err = req.Presign(expireIn)
 	if err != nil {
-		return "", errors.BadRequest.Newf("Cannot get s3 signed url for key '%s'", key)
+		return "", ryerr.BadRequest.Newf("Cannot get s3 signed url for key '%s'", key)
 	}
 
 	return url, nil
@@ -87,7 +87,7 @@ func (s *S3) GetPutSignedURL(key string, expireIn time.Duration, opts ...stgopti
 	})
 	url, err = req.Presign(expireIn)
 	if err != nil {
-		return "", errors.BadRequest.Newf("Cannot get s3 put signed url for key '%s'", key)
+		return "", ryerr.BadRequest.Newf("Cannot get s3 put signed url for key '%s'", key)
 	}
 
 	return url, nil

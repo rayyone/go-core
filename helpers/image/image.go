@@ -1,9 +1,9 @@
 package imagehelper
 
 import (
-	"github.com/rayyone/go-core/errors"
+	"github.com/rayyone/go-core/ryerr"
 
-	"gopkg.in/h2non/bimg.v1"
+	"github.com/h2non/bimg"
 )
 
 type ImageHelper struct {
@@ -30,7 +30,7 @@ func (i *ImageHelper) GetImage() ([]byte, error) {
 func (ih *ImageHelper) Resize(width int, height int, options ...interface{}) ([]byte, error) {
 	newImage, err := ih.BImgFile.Resize(width, height)
 	if err != nil {
-		return nil, errors.BadRequest.Newf("Cannot resize image. Error: %v", err)
+		return nil, ryerr.BadRequest.Newf("Cannot resize image. Error: %v", err)
 	}
 	return newImage, err
 }
@@ -42,7 +42,7 @@ func (ih *ImageHelper) ResizeByHeight(height int) *ImageHelper {
 	}
 	bs, err := ih.BImgFile.Process(options)
 	if err != nil {
-		ih.Error = errors.BadRequest.Newf("Cannot resize image. Error: %v", err)
+		ih.Error = ryerr.BadRequest.Newf("Cannot resize image. Error: %v", err)
 		return nil
 	}
 	ih.BImgFile = bimg.NewImage(bs)
@@ -56,7 +56,7 @@ func (ih *ImageHelper) ResizeByWidth(width int) *ImageHelper {
 	}
 	bs, err := ih.BImgFile.Process(options)
 	if err != nil {
-		ih.Error = errors.BadRequest.Newf("Cannot resize image. Error: %v", err)
+		ih.Error = ryerr.BadRequest.Newf("Cannot resize image. Error: %v", err)
 		return nil
 	}
 	ih.BImgFile = bimg.NewImage(bs)
@@ -67,7 +67,7 @@ func (ih *ImageHelper) Compress(quality int) *ImageHelper {
 	options := bimg.Options{Quality: quality}
 	bs, err := ih.BImgFile.Process(options)
 	if err != nil {
-		ih.Error = errors.BadRequest.Newf("Cannot resize image. Error: %v", err)
+		ih.Error = ryerr.BadRequest.Newf("Cannot resize image. Error: %v", err)
 		return nil
 	}
 	ih.BImgFile = bimg.NewImage(bs)
@@ -77,7 +77,7 @@ func (ih *ImageHelper) Compress(quality int) *ImageHelper {
 func (ih *ImageHelper) GetSize(bImage *[]byte) (*ImageSize, error) {
 	bSize, err := bimg.Size(*bImage)
 	if err != nil {
-		return nil, errors.BadRequest.Newf("Cannot get image size. Error: %v", err)
+		return nil, ryerr.BadRequest.Newf("Cannot get image size. Error: %v", err)
 	}
 	return &ImageSize{Width: bSize.Width, Height: bSize.Height}, nil
 }
@@ -100,7 +100,7 @@ func (ih *ImageHelper) MakeSquareThumbnail(size int) ([]byte, error) {
 	}
 	bs, err := ih.BImgFile.Process(options)
 	if err != nil {
-		return nil, errors.BadRequest.Newf("Cannot make square thumbnail. Error: %v", err)
+		return nil, ryerr.BadRequest.Newf("Cannot make square thumbnail. Error: %v", err)
 	}
 
 	return bs, nil

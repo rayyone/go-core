@@ -3,7 +3,7 @@ package retry
 import (
 	"time"
 
-	"github.com/rayyone/go-core/errors"
+	"github.com/rayyone/go-core/ryerr"
 	loghelper "github.com/rayyone/go-core/helpers/log"
 )
 
@@ -32,9 +32,9 @@ func WithRetry(fn func() error, opts Options) error {
 		opts.attempt++
 		if opts.attempt > opts.MaxRetry {
 			if opts.MaxRetry > 0 {
-				return errors.BadRequest.Newf("Max retry reached. Error: %+v", err)
+				return ryerr.BadRequest.Newf("Max retry reached. Error: %+v", err)
 			} else {
-				return errors.BadRequest.Newf(err.Error())
+				return ryerr.BadRequest.Newf(err.Error())
 			}
 		} else {
 			return WithRetry(fn, opts)

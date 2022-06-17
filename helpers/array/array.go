@@ -1,6 +1,8 @@
 package array
 
-import "reflect"
+import (
+	"reflect"
+)
 
 // InArray will search element inside array with any type.
 // Will return boolean and index for matched element.

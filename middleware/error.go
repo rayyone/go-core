@@ -9,11 +9,11 @@ import (
 	"syscall"
 	"unicode"
 
-	"github.com/rayyone/go-core/errors"
-	"github.com/rayyone/go-core/helpers/response"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
+	validator "github.com/go-playground/validator/v10"
+	"github.com/rayyone/go-core/helpers/response"
+	"github.com/rayyone/go-core/ryerr"
 )
 
 func isAllUpper(s string) bool {
@@ -58,12 +58,12 @@ func handleValidationError(e *gin.Error, c *gin.Context) {
 	for _, validationErr := range validationErrs {
 		errMessage = fieldErrorToText(validationErr)
 		if isAllUpper(validationErr.Field()) {
-			err = errors.AddErrorContext(err, strings.ToLower(validationErr.Field()), errMessage)
+			err = ryerr.AddErrorContext(err, strings.ToLower(validationErr.Field()), errMessage)
 		} else {
-			err = errors.AddErrorContext(err, lowerCaseFirst(validationErr.Field()), errMessage)
+			err = ryerr.AddErrorContext(err, lowerCaseFirst(validationErr.Field()), errMessage)
 		}
 	}
-	response.RespondError(c, errors.Validation.New(errMessage))
+	response.RespondError(c, ryerr.Validation.New(errMessage))
 }
 
 // HandleError Middleware for handling error
@@ -78,23 +78,23 @@ func HandleError() gin.HandlerFunc {
 			case *net.OpError:
 				if se, ok := e.Err.(*os.SyscallError); ok {
 					if se.Err == syscall.EPIPE {
-						response.RespondError(c, errors.NewAndDontReport("Broken Pipe"))
+						response.RespondError(c, ryerr.New("Broken Pipe"))
 						log.Printf("Error: Broken Pipe | %+v", ginErr)
 					} else if se.Err == syscall.ECONNRESET {
-						response.RespondError(c, errors.NewAndDontReport("Connection Reset"))
+						response.RespondError(c, ryerr.New("Connection Reset"))
 						log.Printf("Error: Connection Reset | %+v", ginErr)
 					}
 				}
 			default:
-				err := errors.Newf("Unknown error. Error: %s", spew.Sdump(e))
-				response.RespondError(c, errors.Msg(err, "Unknown error"))
+				err := ryerr.Newf("Unknown error. Error: %s", spew.Sdump(e))
+				response.RespondError(c, ryerr.Msg(err, "Unknown error"))
 				log.Printf("Error: Unknown error | %v", ginErr)
 			}
 		}
 
 		// If there is no response yet, we respond with unhandled response error
-		if !c.Writer.Written() {
-			response.RespondError(c, errors.New("Unhandled response."))
+		if len(c.Errors) != 0 && !c.Writer.Written() && c.Writer.Status() != 200 {
+			response.RespondError(c, ryerr.New("Unhandled response."))
 			log.Println("Error: Unhandled response.")
 		}
 	}

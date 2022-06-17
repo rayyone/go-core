@@ -1,8 +1,8 @@
 package corecontainer
 
 import (
-	"github.com/rayyone/go-core/errors"
-	"github.com/jinzhu/gorm"
+	"github.com/rayyone/go-core/ryerr"
+	"gorm.io/gorm"
 )
 
 type Database struct {
@@ -25,11 +25,11 @@ func (d *Database) BeginTransaction() {
 
 func (d *Database) Commit() error {
 	if !d.transactionOpened {
-		return errors.New("TX has been committed or rolled back")
+		return ryerr.New("TX has been committed or rolled back")
 	}
 	err := d.dbTransaction.Commit().Error
 	if err != nil {
-		err = errors.Newf("Commit Error. Error: %v", err)
+		err = ryerr.Newf("Commit Error. Error: %v", err)
 		_ = d.Rollback()
 		return err
 	}
@@ -44,7 +44,7 @@ func (d *Database) Rollback() error {
 	}
 	err := d.dbTransaction.Rollback().Error
 	if err != nil {
-		err = errors.Newf("Rollback Error. Error: %v", err)
+		err = ryerr.Newf("Rollback Error. Error: %v", err)
 		return err
 	}
 	d.Clear()

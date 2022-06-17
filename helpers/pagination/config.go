@@ -41,15 +41,15 @@ func GetPaginationConfig(page int, limit int) Config {
 	}
 }
 
-func BuildPaginator(total int, limit int, offset int) *Paginator {
+func BuildPaginator(total int64, limit int, offset int) *Paginator {
 	var paginator Paginator
-
+	totalInt := int(total)
 	currentPage := offset/limit + 1
 	totalPages := int(math.Ceil(float64(total) / float64(limit)))
-	itemFrom := validateMaxNumber((currentPage-1)*limit+1, total)
-	itemTo := validateMaxNumber(currentPage*limit, total)
+	itemFrom := validateMaxNumber((currentPage-1)*limit+1, totalInt)
+	itemTo := validateMaxNumber(currentPage*limit, totalInt)
 
-	paginator.TotalItems = total
+	paginator.TotalItems = totalInt
 	paginator.TotalPages = totalPages
 	paginator.ItemFrom = itemFrom
 	paginator.ItemTo = itemTo

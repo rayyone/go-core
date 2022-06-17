@@ -1,4 +1,4 @@
-package smtp
+package mails
 
 import (
 	"bytes"
@@ -8,17 +8,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rayyone/go-core/errors"
 	loghelper "github.com/rayyone/go-core/helpers/log"
-	"github.com/rayyone/go-core/mails"
+	"github.com/rayyone/go-core/ryerr"
 )
 
-// Mailer SMTP Mailer
-type Mailer struct {
-	config Configuration
+// SMTPMailer SMTP SMTPMailer
+type SMTPMailer struct {
+	config SMTPConfiguration
 }
 
-type Configuration struct {
+type SMTPConfiguration struct {
 	Host     string
 	Port     int
 	Email    string
@@ -26,7 +25,7 @@ type Configuration struct {
 	Name     string
 }
 
-func (m *Mailer) Send(recipient mails.Recipient, subject string, htmlBody string, textBody string) error {
+func (m *SMTPMailer) Send(recipient Recipient, subject string, htmlBody string, textBody string) error {
 	smtpAuth := smtp.PlainAuth(m.config.Name, m.config.Email, m.config.Password, m.config.Host)
 	smtpAddr := fmt.Sprintf("%s:%d", m.config.Host, m.config.Port)
 
@@ -42,14 +41,14 @@ func (m *Mailer) Send(recipient mails.Recipient, subject string, htmlBody string
 	err := smtp.SendMail(smtpAddr, smtpAuth, m.config.Email, recipient.To, []byte(msg))
 	if err != nil {
 		loghelper.PrintRedf("[SMTP] Send email completed with error in %.2fs", time.Since(start).Seconds())
-		return errors.NewAndDontReport(fmt.Sprintf("Error: Cannot send email via SMTP provider. Error: %v", err))
+		return ryerr.NewAndDontReport(fmt.Sprintf("Error: Cannot send email via SMTP provider. Error: %v", err))
 	}
 	loghelper.PrintYellowf("[SMTP] Send email completed in %.2fs", time.Since(start).Seconds())
 
 	return nil
 }
 
-func (m *Mailer) SendWithCalendarEvent(recipient mails.Recipient, options *mails.CalendarEventOption, subject string, htmlBody string, textBody string) error {
+func (m *SMTPMailer) SendWithCalendarEvent(recipient Recipient, options *CalendarEventOption, subject string, htmlBody string, textBody string) error {
 	smtpAuth := smtp.PlainAuth(m.config.Name, m.config.Email, m.config.Password, m.config.Host)
 	smtpAddr := fmt.Sprintf("%s:%d", m.config.Host, m.config.Port)
 
@@ -57,18 +56,18 @@ func (m *Mailer) SendWithCalendarEvent(recipient mails.Recipient, options *mails
 
 	err := smtp.SendMail(smtpAddr, smtpAuth, m.config.Email, recipient.To, []byte(msg))
 	if err != nil {
-		return errors.NewAndDontReport(fmt.Sprintf("Error: Cannot send email via SMTP provider. Error: %v", err))
+		return ryerr.NewAndDontReport(fmt.Sprintf("Error: Cannot send email via SMTP provider. Error: %v", err))
 	}
 
 	return nil
 }
 
-// NewMailer New smtp mailer
-func NewMailer(conf Configuration) *Mailer {
-	return &Mailer{config: conf}
+// NewSMTPMailer New smtp mailer
+func NewSMTPMailer(conf SMTPConfiguration) *SMTPMailer {
+	return &SMTPMailer{config: conf}
 }
 
-func (m *Mailer) buildMessage(recipient mails.Recipient, subject string, htmlBody string, textBody string) string {
+func (m *SMTPMailer) buildMessage(recipient Recipient, subject string, htmlBody string, textBody string) string {
 	writer := multipart.NewWriter(bytes.NewBufferString(""))
 
 	msg := fmt.Sprintf("From: %s <%s>\r\n", m.config.Name, m.config.Email)
@@ -93,7 +92,7 @@ func (m *Mailer) buildMessage(recipient mails.Recipient, subject string, htmlBod
 	return msg
 }
 
-func (m *Mailer) buildCalendarInvitationMessage(recipient mails.Recipient, options *mails.CalendarEventOption, subject string, htmlBody string, textBody string) string {
+func (m *SMTPMailer) buildCalendarInvitationMessage(recipient Recipient, options *CalendarEventOption, subject string, htmlBody string, textBody string) string {
 	mixedBoundaryWriter := multipart.NewWriter(bytes.NewBufferString(""))
 	alternativeBoundaryWriter := multipart.NewWriter(bytes.NewBufferString(""))
 
@@ -153,14 +152,14 @@ Content-Transfer-Encoding: %s
 	return fmt.Sprintf(contentTypeFormat, writer.Boundary(), contentType, charset, encoding)
 }
 
-func getCalendarBody(options *mails.CalendarEventOption) string {
+func getCalendarBody(options *CalendarEventOption) string {
 	var attendee string
 	for _, a := range options.Attendees {
 		attendee += fmt.Sprintf("\nATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=%s;RSVP=TRUE;CN=%s;X-NUM-GUESTS=0:mailto:%s", a.Status, a.Name, a.Email)
 	}
 
 	if options.AppointmentMethod == "" {
-		options.AppointmentMethod = mails.APPOINTMENT_TYPE_REQUEST
+		options.AppointmentMethod = APPOINTMENT_TYPE_REQUEST
 	}
 
 	body := `

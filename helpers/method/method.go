@@ -1,7 +1,7 @@
 package method
 
 import (
-	"errors"
+	"github.com/rayyone/go-core/ryerr"
 	"mime/multipart"
 	"net/http"
 	"reflect"
@@ -12,12 +12,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
-	"github.com/jinzhu/gorm/dialects/postgres"
 )
 
-func EmptyJsonb() postgres.Jsonb {
-	return postgres.Jsonb{RawMessage: []byte("{}")}
-}
+//func EmptyJsonb() postgres.Jsonb {
+//	return postgres.Jsonb{RawMessage: []byte("{}")}
+//}
 
 func IsSliceEmpty(data interface{}) bool {
 	if reflect.TypeOf(data).Kind() != reflect.Ptr {
@@ -43,6 +42,10 @@ func NewInt(val int) *int {
 func NewString(val string) *string {
 	i := val
 	return &i
+}
+
+func Ptr[T any](val T) *T {
+	return &val
 }
 
 func ExtractMimeFromType(typeStr string) []string {
@@ -105,7 +108,7 @@ func GuessTime(t interface{}) (*time.Time, error) {
 		case time.Time:
 			res = t
 		default:
-			return nil, errors.New("Date time format is not supported.")
+			return nil, ryerr.New("Date time format is not supported.")
 		}
 	}
 

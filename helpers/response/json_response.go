@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/rayyone/go-core/errors"
+	"github.com/rayyone/go-core/ryerr"
 	"github.com/rayyone/go-core/helpers/pagination"
 	"github.com/gin-gonic/gin"
 )
@@ -52,7 +52,7 @@ func BuildErrorResponse(err error, errorCode string, message string) ErrorRespon
 	var errMsgs []string
 
 	response.StandardResponse = BuildStandardResponse("error", message)
-	contexts := errors.GetErrorContexts(err)
+	contexts := ryerr.GetErrorContexts(err)
 	for _, v := range contexts {
 		errMsgs = append(errMsgs, v)
 	}
@@ -84,15 +84,15 @@ func RespondSuccessWithPaginator(c *gin.Context, data interface{}, paginator *pa
 func RespondError(c *gin.Context, err error) {
 	var defaultMessage, errorCode string
 
-	errType := errors.GetType(err)
+	errType := ryerr.GetType(err)
 	switch errType {
-	case errors.Unauthorized:
+	case ryerr.Unauthorized:
 		defaultMessage = "Unauthorized."
-	case errors.NotFound:
+	case ryerr.NotFound:
 		defaultMessage = "Resource not found."
-	case errors.UnprocessableEntity:
+	case ryerr.UnprocessableEntity:
 		defaultMessage = "Unprocessable entity error."
-	case errors.BadRequest:
+	case ryerr.BadRequest:
 		defaultMessage = "Bad request."
 	default:
 		defaultMessage = "Internal server error."

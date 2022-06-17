@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rayyone/go-core/errors"
+	"github.com/rayyone/go-core/ryerr"
 	"github.com/rayyone/go-core/helpers/httpclient/contenttype"
 	loghelper "github.com/rayyone/go-core/helpers/log"
 	"github.com/rayyone/go-core/helpers/retry"
@@ -131,7 +131,7 @@ func Get(endpoint string, queryParams url.Values, result interface{}, opts ...Re
 	endpointWithQuery, err := url.Parse(endpoint)
 	if err != nil {
 		errMsg := fmt.Sprintf("Error: API Call - Cannot parse URL. Error: %v", err)
-		return errors.BadRequest.New(errMsg)
+		return ryerr.BadRequest.New(errMsg)
 	}
 
 	if queryParams != nil && len(queryParams) > 0 {
@@ -175,14 +175,14 @@ func requestWithBodyParams(method string, url string, payload BodyParams, result
 		bodyParams, contentType, err = getFormDataBodyParams(payload)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error: API Call - Cannot build form data payload. Error: %v", err)
-			return errors.BadRequest.New(errMsg)
+			return ryerr.BadRequest.New(errMsg)
 		}
 		opts = append(opts, ContentType(contentType))
 	} else {
 		payloadBs, err := json.Marshal(payload)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error: API Call - Cannot encode payload. Error: %v", err)
-			return errors.BadRequest.New(errMsg)
+			return ryerr.BadRequest.New(errMsg)
 		}
 		bodyParams = bytes.NewBuffer(payloadBs)
 	}
@@ -234,7 +234,7 @@ func getFormDataBodyParams(payload BodyParams) (io.Reader, string, error) {
 func addFormFile(multipartWriter *multipart.Writer, key string, fileHeader *multipart.FileHeader) error {
 	file, err := fileHeader.Open()
 	if err != nil {
-		return errors.Validation.New("Cannot open file")
+		return ryerr.Validation.New("Cannot open file")
 	}
 
 	part, err := multipartWriter.CreateFormFile(key, fileHeader.Filename)
@@ -264,7 +264,7 @@ func buildRequest(method string, url string, bodyParams io.Reader, opts ...Reque
 	req, err := http.NewRequest(method, url, bodyParams)
 	if err != nil {
 		errMsg := fmt.Sprintf("Error: API Call - Cannot init HTTP Request to '%s'. Error: %v", url, err)
-		return nil, errors.BadRequest.New(errMsg)
+		return nil, ryerr.BadRequest.New(errMsg)
 	}
 
 	return req, nil
@@ -297,7 +297,7 @@ func SendRequest(req *http.Request, result interface{}, opts ...RequestOption) (
 			defer resp.Body.Close()
 		}
 		if err != nil {
-			return errors.NewAndDontReport(fmt.Sprintf("Error: API Call - Cannot call API '%s'. Error: %v", req.URL, err))
+			return ryerr.NewAndDontReport(fmt.Sprintf("Error: API Call - Cannot call API '%s'. Error: %v", req.URL, err))
 		}
 
 		bodyBs, _ = ioutil.ReadAll(resp.Body)
@@ -306,11 +306,11 @@ func SendRequest(req *http.Request, result interface{}, opts ...RequestOption) (
 		// This must to do, to avoid memory leak when reusing http
 		// Connection. if you don't do this, http connection will be closed
 		if _, err := io.Copy(ioutil.Discard, resp.Body); err != nil {
-			return errors.NewAndDontReport(fmt.Sprintf("Error: Cannot discard body response to dev null. Error: %v", err))
+			return ryerr.NewAndDontReport(fmt.Sprintf("Error: Cannot discard body response to dev null. Error: %v", err))
 		}
 
 		if resp.StatusCode >= 500 {
-			return errors.NewAndDontReport(fmt.Sprintf("Error: API Call to '%s' - Returning status code of %d. Body Response: %s", resp.Request.URL, resp.StatusCode, bodyBs))
+			return ryerr.NewAndDontReport(fmt.Sprintf("Error: API Call to '%s' - Returning status code of %d. Body Response: %s", resp.Request.URL, resp.StatusCode, bodyBs))
 		}
 
 		return nil
@@ -321,12 +321,12 @@ func SendRequest(req *http.Request, result interface{}, opts ...RequestOption) (
 
 	if resp.StatusCode >= 400 {
 		body := string(bodyBs)
-		errType := errors.BadRequest
+		errType := ryerr.BadRequest
 		if resp.StatusCode != 400 && (!options.ReportOnRequestError || resp.StatusCode == 422) {
-			errType = errors.Validation
+			errType = ryerr.Validation
 		}
 
-		errors.SetExtra("json_response", body)
+		ryerr.SetExtra("json_response", body)
 		if options.ErrorResult != nil {
 			if err := json.Unmarshal(bodyBs, &options.ErrorResult); err != nil {
 				return errType.Newf("Error: API Call to '%s' - Cannot unmarshal error response. Error: %v. Response: %s", resp.Request.URL, err, body)
@@ -337,7 +337,7 @@ func SendRequest(req *http.Request, result interface{}, opts ...RequestOption) (
 	}
 
 	if err := json.Unmarshal(bodyBs, &result); err != nil {
-		return errors.BadRequest.Newf("Error: API Call to '%s' - Cannot unmarshal response. Error: %v", resp.Request.URL, err)
+		return ryerr.BadRequest.Newf("Error: API Call to '%s' - Cannot unmarshal response. Error: %v", resp.Request.URL, err)
 	}
 
 	return nil

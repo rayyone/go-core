@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"reflect"
 
-	"github.com/rayyone/go-core/errors"
+	"github.com/rayyone/go-core/ryerr"
 )
 
 // Sanitize Remove key with nil value
@@ -22,12 +22,12 @@ func Sanitize(m map[string]interface{}) error {
 func ConvertToStruct(input interface{}, output interface{}) error {
 	i, ok := input.(map[string]interface{})
 	if !ok {
-		return errors.New("Cannot convert maps to struct, input is not a type of map[string]interface{}")
+		return ryerr.New("Cannot convert maps to struct, input is not a type of map[string]interface{}")
 	}
 
 	inputBs, _ := json.Marshal(i)
 	if err := json.Unmarshal(inputBs, output); err != nil {
-		return errors.BadRequest.Newf("Cannot unmarshal when converting to struct. Error: %v", err)
+		return ryerr.BadRequest.Newf("Cannot unmarshal when converting to struct. Error: %v", err)
 	}
 
 	return nil

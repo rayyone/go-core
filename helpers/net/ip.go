@@ -1,10 +1,10 @@
 package nethelper
 
 import (
-	"errors"
 	"net"
 	"net/http"
 	"strings"
+	"github.com/rayyone/go-core/ryerr"
 )
 
 var cidrs []*net.IPNet
@@ -37,7 +37,7 @@ func init() {
 func isPrivateAddress(address string) (bool, error) {
 	ipAddress := net.ParseIP(address)
 	if ipAddress == nil {
-		return false, errors.New("address is not valid")
+		return false, ryerr.New("address is not valid")
 	}
 
 	for i := range cidrs {
