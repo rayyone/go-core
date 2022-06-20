@@ -26,14 +26,13 @@ type Configuration struct {
 func NewConfiguration(config *Configuration) *Configuration {
 	logLevelMap := map[string]logger.LogLevel{
 		"Silent": logger.Silent,
-		"Error": logger.Error,
-		"Warn": logger.Warn,
-		"Info": logger.Info,
+		"Error":  logger.Error,
+		"Warn":   logger.Warn,
+		"Info":   logger.Info,
 	}
 	config.DBLogLevel = logLevelMap[config.LogLevel]
 	return config
 }
-
 
 type TableNameReplacer struct{}
 
@@ -56,7 +55,7 @@ func InitDB(config *Configuration) *gorm.DB {
 
 	switch config.Driver {
 	case "postgres":
-		dbConString := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable password=%s parseTime=True",
+		dbConString := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable password=%s",
 			config.Host,
 			config.Port,
 			config.User,
