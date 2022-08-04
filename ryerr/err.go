@@ -2,10 +2,11 @@ package ryerr
 
 import (
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"runtime"
 	"strconv"
 
-	sentry "github.com/getsentry/sentry-go"
+	"github.com/getsentry/sentry-go"
 	"github.com/pkg/errors"
 	loghelper "github.com/rayyone/go-core/helpers/log"
 	"gorm.io/gorm"
@@ -47,6 +48,9 @@ func (c Err) Error() string {
 func (errorType ErrorType) New(msg string) error {
 	loghelper.PrintRed(msg)
 	shouldReport := shouldReport(errorType)
+	errLogger := gin.DefaultErrorWriter
+	errLogger.Write([]byte(msg + "\n"))
+
 	customErr := Err{errorType: errorType, originalError: errors.New(msg), stackTrace: []string{msg}}
 	if shouldReport {
 		customErr.Report()
@@ -58,6 +62,8 @@ func (errorType ErrorType) New(msg string) error {
 // NewAndReport creates a new Err and report
 func (errorType ErrorType) NewAndReport(msg string) error {
 	loghelper.PrintRed(msg)
+	errLogger := gin.DefaultErrorWriter
+	errLogger.Write([]byte(msg + "\n"))
 	customErr := Err{errorType: errorType, originalError: errors.New(msg), stackTrace: []string{msg}}
 	customErr.Report()
 
@@ -66,8 +72,12 @@ func (errorType ErrorType) NewAndReport(msg string) error {
 
 // Newf creates a new Err with formatted message
 func (errorType ErrorType) Newf(msg string, args ...interface{}) error {
-	loghelper.PrintRed(fmt.Sprintf(msg, args...))
+	out := fmt.Sprintf(msg, args...)
+	loghelper.PrintRed(out)
 	shouldReport := shouldReport(errorType)
+	errLogger := gin.DefaultErrorWriter
+	errLogger.Write([]byte(out + "\n"))
+
 	customErr := Err{errorType: errorType, originalError: fmt.Errorf(msg, args...), stackTrace: []string{msg}}
 	if shouldReport {
 		customErr.Report()
@@ -78,7 +88,11 @@ func (errorType ErrorType) Newf(msg string, args ...interface{}) error {
 
 // NewfAndReport creates a new Err with formatted message and report
 func (errorType ErrorType) NewfAndReport(msg string, args ...interface{}) error {
-	loghelper.PrintRed(fmt.Sprintf(msg, args...))
+	out := fmt.Sprintf(msg, args...)
+	loghelper.PrintRed(out)
+	errLogger := gin.DefaultErrorWriter
+	errLogger.Write([]byte(out + "\n"))
+
 	customErr := Err{errorType: errorType, originalError: fmt.Errorf(msg, args...), stackTrace: []string{msg}}
 	customErr.Report()
 
@@ -111,14 +125,19 @@ func (errorType ErrorType) Wrapf(err error, msg string, args ...interface{}) err
 }
 
 func (c Err) Report() {
-	loghelper.PrintRed("========== Error Stack Strace ==========")
+	var fullText = "========== Error Stack Strace =========="
+	loghelper.PrintRed(fullText)
+	fullText = "\n" + fullText + "\n"
 	var stackTrace []string
 	for i := 4; i < 9; i++ { // Skip 4 function, Get last 5 error trace
 		file, line, fnName := traceCaller(i)
 		traceMsg := fmt.Sprintf("%s:%d@%s", file, line, fnName)
 		loghelper.PrintYellow(traceMsg)
 		stackTrace = append(stackTrace, traceMsg)
+		fullText += traceMsg + "\n"
 	}
+	errLogger := gin.DefaultErrorWriter
+	errLogger.Write([]byte(fullText))
 
 	sentry.ConfigureScope(func(scope *sentry.Scope) {
 		scope.SetExtra("stack_trace", stackTrace)
@@ -129,6 +148,8 @@ func (c Err) Report() {
 // New creates a no type error and report to sentry
 func New(msg string) error {
 	loghelper.PrintRed(msg)
+	errLogger := gin.DefaultErrorWriter
+	errLogger.Write([]byte(msg + "\n"))
 	err := Err{errorType: NoType, originalError: errors.New(msg)}
 
 	err.Report()
@@ -139,6 +160,8 @@ func New(msg string) error {
 // NewAndDontReport creates a new Err and don't report it
 func NewAndDontReport(msg string) error {
 	loghelper.PrintRed(msg)
+	errLogger := gin.DefaultErrorWriter
+	errLogger.Write([]byte(msg + "\n"))
 	err := Err{errorType: NoType, originalError: errors.New(msg)}
 
 	return err
@@ -146,8 +169,11 @@ func NewAndDontReport(msg string) error {
 
 // Newf creates a no type error with formatted message
 func Newf(msg string, args ...interface{}) error {
-	loghelper.PrintRed(fmt.Sprintf(msg, args...))
-	err := Err{errorType: NoType, originalError: errors.New(fmt.Sprintf(msg, args...))}
+	out := fmt.Sprintf(msg, args...)
+	loghelper.PrintRed(out)
+	errLogger := gin.DefaultErrorWriter
+	errLogger.Write([]byte(out + "\n"))
+	err := Err{errorType: NoType, originalError: errors.New(out)}
 
 	err.Report()
 
