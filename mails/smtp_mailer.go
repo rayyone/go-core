@@ -84,9 +84,9 @@ func (m *SMTPMailer) buildMessage(recipient Recipient, subject string, htmlBody 
 	msg += "MIME-version: 1.0;"
 	msg += getAlternativeMultipartStart(writer)
 	msg += getContentTypeWithBoundary(writer, "text/plain", "UTF-8", "8bit")
-	msg += textBody
+	msg += "\r\n" + textBody
 	msg += getContentTypeWithBoundary(writer, "text/html", "UTF-8", "8bit")
-	msg += htmlBody
+	msg += "\r\n" + htmlBody
 	msg += getMultipartBoundaryEnd(writer)
 
 	return msg
@@ -112,9 +112,9 @@ func (m *SMTPMailer) buildCalendarInvitationMessage(recipient Recipient, options
 	msg += getMultipartBoundaryOpen(mixedBoundaryWriter)
 	msg += getAlternativeMultipartStart(alternativeBoundaryWriter)
 	msg += getContentTypeWithBoundary(alternativeBoundaryWriter, "text/plain", "UTF-8", "8bit")
-	msg += textBody
+	msg += "\r\n" + textBody
 	msg += getContentTypeWithBoundary(alternativeBoundaryWriter, "text/html", "UTF-8", "8bit")
-	msg += htmlBody
+	msg += "\r\n" + htmlBody
 	msg += getContentTypeWithBoundary(alternativeBoundaryWriter, "text/calendar; method=REQUEST", "UTF-8", "7bit")
 	msg += getCalendarBody(options)
 	msg += getMultipartBoundaryEnd(alternativeBoundaryWriter)
