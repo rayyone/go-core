@@ -60,6 +60,20 @@ func (br *CoreGormRepository) Create(r corecontainer.RequestInf, out interface{}
 	}
 	return tx, nil
 }
+// Create or update
+func (br *CoreGormRepository) Upsert(r corecontainer.RequestInf, out interface{}, conds clause.Expression) (*gorm.DB, error) {
+	tx := DefaultBaseQuery(r).Clauses(conds).Create(out)
+	err := tx.Error
+	if err != nil {
+		err = ryerr.Newf("Base Repo [Upsert] Error: %s", err)
+		if br.IsDebugging {
+			return tx, err
+		} else {
+			return tx, ryerr.Msg(err, "Something went wrong. Please try again later")
+		}
+	}
+	return tx, nil
+}
 
 // FindBy Find one record by a given condition
 func (br *CoreGormRepository) FindBy(r corecontainer.RequestInf, out interface{}, where string, args ...interface{}) (*gorm.DB, error) {
