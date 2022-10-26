@@ -8,24 +8,37 @@ type Mailable interface {
 }
 
 type MailProvider interface {
-	Send(recipient Recipient, subject string, htmlBody string, textBody string) error
-	SendWithCalendarEvent(recipient Recipient, options *CalendarEventOption, subject string, htmlBody string, textBody string) error
+	Send(recipient Recipient, from From, content MailContent) error
+	SendWithCalendarEvent(recipient Recipient, from From, content MailContent, options *CalendarEventOption) error
 }
 
 // Mailer Mailer
 type Mailer struct {
 	MailProvider MailProvider
 	Recipient    Recipient
+	From       From
+	FromDefault From
 }
 
 // NewMailer creating new mailer
-func NewMailer(provider MailProvider) *Mailer {
-	return &Mailer{MailProvider: provider}
+func NewMailer(provider MailProvider, from From) *Mailer {
+	return &Mailer{MailProvider: provider, From: from, FromDefault: from}
 }
+
 
 // Provider Set provider
 func (m *Mailer) Provider(provider MailProvider) *Mailer {
-	return NewMailer(provider)
+	return NewMailer(provider, m.FromDefault)
+}
+
+func (m *Mailer) Reset() *Mailer {
+	return NewMailer(m.MailProvider, m.FromDefault)
+}
+
+// Provider Set Sender
+func (m *Mailer) Sender(from From) *Mailer {
+	m.From = from
+	return m
 }
 
 // AddTo Add to
@@ -72,18 +85,21 @@ func (m *Mailer) Bcc(bcc ...string) *Mailer {
 
 // Send Send Email
 func (m *Mailer) Send(mailable Mailable) error {
-	subject := mailable.BuildSubject()
-	htmlBody := mailable.BuildHTMLBody()
-	textBody := mailable.BuildTextBody()
-
-	return m.MailProvider.Send(m.Recipient, subject, htmlBody, textBody)
+	mailContent := MailContent{
+		Subject:  mailable.BuildSubject(),
+		HtmlBody: mailable.BuildHTMLBody(),
+		TextBody: mailable.BuildTextBody(),
+	}
+	return m.MailProvider.Send(m.Recipient, m.From, mailContent)
 }
 
 // Send Send Email
 func (m *Mailer) SendWithCalendarEvent(mailable Mailable, options *CalendarEventOption) error {
-	subject := mailable.BuildSubject()
-	htmlBody := mailable.BuildHTMLBody()
-	textBody := mailable.BuildTextBody()
+	mailContent := MailContent{
+		Subject:  mailable.BuildSubject(),
+		HtmlBody: mailable.BuildHTMLBody(),
+		TextBody: mailable.BuildTextBody(),
+	}
 
-	return m.MailProvider.SendWithCalendarEvent(m.Recipient, options, subject, htmlBody, textBody)
+	return m.MailProvider.SendWithCalendarEvent(m.Recipient, m.From, mailContent, options)
 }

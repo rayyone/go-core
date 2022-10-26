@@ -7,7 +7,6 @@ import (
 	"net/smtp"
 	"strings"
 	"time"
-
 	loghelper "github.com/rayyone/go-core/helpers/log"
 	"github.com/rayyone/go-core/ryerr"
 )
@@ -20,16 +19,27 @@ type SMTPMailer struct {
 type SMTPConfiguration struct {
 	Host     string
 	Port     int
-	Email    string
+	User    string
 	Password string
-	Name     string
 }
 
-func (m *SMTPMailer) Send(recipient Recipient, subject string, htmlBody string, textBody string) error {
-	smtpAuth := smtp.PlainAuth(m.config.Name, m.config.Email, m.config.Password, m.config.Host)
+type From struct {
+	Address string
+	Name  string
+}
+
+type MailContent struct {
+	Subject  string
+	HtmlBody string
+	TextBody string
+}
+
+func (m *SMTPMailer) Send(recipient Recipient, from From, content MailContent) error {
+	smtpAuth := smtp.PlainAuth(from.Name, m.config.User, m.config.Password, m.config.Host)
 	smtpAddr := fmt.Sprintf("%s:%d", m.config.Host, m.config.Port)
 
-	msg := m.buildMessage(recipient, subject, htmlBody, textBody)
+	//msg := m.buildMessage(recipient, subject, htmlBody, textBody)
+	msg := m.buildMessage(recipient, from, content)
 
 	start := time.Now()
 	loghelper.PrintYellowf(
@@ -38,7 +48,7 @@ func (m *SMTPMailer) Send(recipient Recipient, subject string, htmlBody string, 
 		strings.Join(recipient.Cc, ", "),
 		strings.Join(recipient.Bcc, ", "),
 	)
-	err := smtp.SendMail(smtpAddr, smtpAuth, m.config.Email, recipient.To, []byte(msg))
+	err := smtp.SendMail(smtpAddr, smtpAuth, m.config.User, recipient.To, []byte(msg))
 	if err != nil {
 		loghelper.PrintRedf("[SMTP] Send email completed with error in %.2fs", time.Since(start).Seconds())
 		return ryerr.NewAndDontReport(fmt.Sprintf("Error: Cannot send email via SMTP provider. Error: %v", err))
@@ -48,13 +58,13 @@ func (m *SMTPMailer) Send(recipient Recipient, subject string, htmlBody string, 
 	return nil
 }
 
-func (m *SMTPMailer) SendWithCalendarEvent(recipient Recipient, options *CalendarEventOption, subject string, htmlBody string, textBody string) error {
-	smtpAuth := smtp.PlainAuth(m.config.Name, m.config.Email, m.config.Password, m.config.Host)
+func (m *SMTPMailer) SendWithCalendarEvent(recipient Recipient, from From, content MailContent, options *CalendarEventOption) error {
+	smtpAuth := smtp.PlainAuth(from.Name, m.config.User, m.config.Password, m.config.Host)
 	smtpAddr := fmt.Sprintf("%s:%d", m.config.Host, m.config.Port)
 
-	msg := m.buildCalendarInvitationMessage(recipient, options, subject, htmlBody, textBody)
+	msg := m.buildCalendarInvitationMessage(recipient, from, content, options)
 
-	err := smtp.SendMail(smtpAddr, smtpAuth, m.config.Email, recipient.To, []byte(msg))
+	err := smtp.SendMail(smtpAddr, smtpAuth, m.config.User, recipient.To, []byte(msg))
 	if err != nil {
 		return ryerr.NewAndDontReport(fmt.Sprintf("Error: Cannot send email via SMTP provider. Error: %v", err))
 	}
@@ -67,10 +77,10 @@ func NewSMTPMailer(conf SMTPConfiguration) *SMTPMailer {
 	return &SMTPMailer{config: conf}
 }
 
-func (m *SMTPMailer) buildMessage(recipient Recipient, subject string, htmlBody string, textBody string) string {
+func (m *SMTPMailer) buildMessage(recipient Recipient, from From, content MailContent) string {
 	writer := multipart.NewWriter(bytes.NewBufferString(""))
 
-	msg := fmt.Sprintf("From: %s <%s>\r\n", m.config.Name, m.config.Email)
+	msg := fmt.Sprintf("From: %s <%s>\r\n", from.Name, from.Address)
 	if len(recipient.To) > 0 {
 		msg += fmt.Sprintf("To: %s\r\n", strings.Join(recipient.To, ";"))
 	}
@@ -80,23 +90,23 @@ func (m *SMTPMailer) buildMessage(recipient Recipient, subject string, htmlBody 
 	if len(recipient.Bcc) > 0 {
 		msg += fmt.Sprintf("Bcc: %s\r\n", strings.Join(recipient.Bcc, ";"))
 	}
-	msg += "Subject: " + subject + "\r\n"
+	msg += "Subject: " + content.Subject + "\r\n"
 	msg += "MIME-version: 1.0;"
 	msg += getAlternativeMultipartStart(writer)
 	msg += getContentTypeWithBoundary(writer, "text/plain", "UTF-8", "8bit")
-	msg += "\r\n" + textBody
+	msg += "\r\n" + content.TextBody
 	msg += getContentTypeWithBoundary(writer, "text/html", "UTF-8", "8bit")
-	msg += "\r\n" + htmlBody
+	msg += "\r\n" + content.HtmlBody
 	msg += getMultipartBoundaryEnd(writer)
 
 	return msg
 }
 
-func (m *SMTPMailer) buildCalendarInvitationMessage(recipient Recipient, options *CalendarEventOption, subject string, htmlBody string, textBody string) string {
+func (m *SMTPMailer) buildCalendarInvitationMessage(recipient Recipient, from From, content MailContent, options *CalendarEventOption) string {
 	mixedBoundaryWriter := multipart.NewWriter(bytes.NewBufferString(""))
 	alternativeBoundaryWriter := multipart.NewWriter(bytes.NewBufferString(""))
 
-	msg := fmt.Sprintf("From: %s <%s>\r\n", m.config.Name, m.config.Email)
+	msg := fmt.Sprintf("From: %s <%s>\r\n", from.Name, from.Address)
 	if len(recipient.To) > 0 {
 		msg += fmt.Sprintf("To: %s\r\n", strings.Join(recipient.To, ";"))
 	}
@@ -106,15 +116,15 @@ func (m *SMTPMailer) buildCalendarInvitationMessage(recipient Recipient, options
 	if len(recipient.Bcc) > 0 {
 		msg += fmt.Sprintf("Bcc: %s\r\n", strings.Join(recipient.Bcc, ";"))
 	}
-	msg += "Subject: " + subject + "\r\n"
+	msg += "Subject: " + content.Subject + "\r\n"
 	msg += "MIME-version: 1.0;"
 	msg += getMixedMultipartStart(mixedBoundaryWriter)
 	msg += getMultipartBoundaryOpen(mixedBoundaryWriter)
 	msg += getAlternativeMultipartStart(alternativeBoundaryWriter)
 	msg += getContentTypeWithBoundary(alternativeBoundaryWriter, "text/plain", "UTF-8", "8bit")
-	msg += "\r\n" + textBody
+	msg += "\r\n" + content.TextBody
 	msg += getContentTypeWithBoundary(alternativeBoundaryWriter, "text/html", "UTF-8", "8bit")
-	msg += "\r\n" + htmlBody
+	msg += "\r\n" + content.HtmlBody
 	msg += getContentTypeWithBoundary(alternativeBoundaryWriter, "text/calendar; method=REQUEST", "UTF-8", "7bit")
 	msg += getCalendarBody(options)
 	msg += getMultipartBoundaryEnd(alternativeBoundaryWriter)
