@@ -76,6 +76,7 @@ func (r *Request) SetPostParams(params interface{}) error {
 	}
 
 	if err != nil {
+		err = ryerr.Validation.New(err.Error())
 		_ = r.GinCtx.Error(err)
 		return err
 	}
