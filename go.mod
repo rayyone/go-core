@@ -13,7 +13,7 @@ require (
 	github.com/h2non/bimg v1.1.5
 	github.com/pkg/errors v0.9.1
 	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3
-	gorm.io/driver/postgres v1.2.3
+	gorm.io/driver/postgres v1.4.5
 	gorm.io/gorm v1.22.4
 )
 
