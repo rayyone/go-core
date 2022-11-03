@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/rayyone/go-core/database"
-
+	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/rayyone/go-core/helpers/array"
@@ -76,7 +76,10 @@ func (r *Request) SetPostParams(params interface{}) error {
 	}
 
 	if err != nil {
-		err = ryerr.Validation.New(err.Error())
+		switch err.(type) {
+		case *json.UnmarshalTypeError:
+			err = ryerr.Validation.New(err.Error())
+		}
 		_ = r.GinCtx.Error(err)
 		return err
 	}
