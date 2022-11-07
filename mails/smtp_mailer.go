@@ -96,9 +96,9 @@ func (m *SMTPMailer) buildMessage(recipient Recipient, from From, content MailCo
 		mailHeader = mailHeader + "\r\n"
 	}
 	msg += "Subject: " + content.Subject + "\r\n"
-	msg += mailHeader
 	msg += "MIME-version: 1.0;"
 	msg += getAlternativeMultipartStart(writer)
+	msg += mailHeader
 	msg += getContentTypeWithBoundary(writer, "text/plain", "UTF-8", "8bit")
 	msg += "\r\n" + content.TextBody
 	msg += getContentTypeWithBoundary(writer, "text/html", "UTF-8", "8bit")
