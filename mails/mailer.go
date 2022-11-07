@@ -5,6 +5,7 @@ type Mailable interface {
 	BuildSubject() string
 	BuildHTMLBody() string
 	BuildTextBody() string
+	BuildHeader() string
 }
 
 type MailProvider interface {
@@ -89,6 +90,7 @@ func (m *Mailer) Send(mailable Mailable) error {
 		Subject:  mailable.BuildSubject(),
 		HtmlBody: mailable.BuildHTMLBody(),
 		TextBody: mailable.BuildTextBody(),
+		Header:   mailable.BuildHeader(),
 	}
 	return m.MailProvider.Send(m.Recipient, m.From, mailContent)
 }
@@ -99,6 +101,7 @@ func (m *Mailer) SendWithCalendarEvent(mailable Mailable, options *CalendarEvent
 		Subject:  mailable.BuildSubject(),
 		HtmlBody: mailable.BuildHTMLBody(),
 		TextBody: mailable.BuildTextBody(),
+		Header:   mailable.BuildHeader(),
 	}
 
 	return m.MailProvider.SendWithCalendarEvent(m.Recipient, m.From, mailContent, options)

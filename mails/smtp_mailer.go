@@ -3,12 +3,12 @@ package mails
 import (
 	"bytes"
 	"fmt"
+	loghelper "github.com/rayyone/go-core/helpers/log"
+	"github.com/rayyone/go-core/ryerr"
 	"mime/multipart"
 	"net/smtp"
 	"strings"
 	"time"
-	loghelper "github.com/rayyone/go-core/helpers/log"
-	"github.com/rayyone/go-core/ryerr"
 )
 
 // SMTPMailer SMTP SMTPMailer
@@ -19,19 +19,20 @@ type SMTPMailer struct {
 type SMTPConfiguration struct {
 	Host     string
 	Port     int
-	User    string
+	User     string
 	Password string
 }
 
 type From struct {
 	Address string
-	Name  string
+	Name    string
 }
 
 type MailContent struct {
 	Subject  string
 	HtmlBody string
 	TextBody string
+	Header    string
 }
 
 func (m *SMTPMailer) Send(recipient Recipient, from From, content MailContent) error {
@@ -90,7 +91,12 @@ func (m *SMTPMailer) buildMessage(recipient Recipient, from From, content MailCo
 	if len(recipient.Bcc) > 0 {
 		msg += fmt.Sprintf("Bcc: %s\r\n", strings.Join(recipient.Bcc, ";"))
 	}
+	mailHeader := content.Header
+	if len(mailHeader) > 0 {
+		mailHeader = mailHeader + "\r\n"
+	}
 	msg += "Subject: " + content.Subject + "\r\n"
+	msg += mailHeader
 	msg += "MIME-version: 1.0;"
 	msg += getAlternativeMultipartStart(writer)
 	msg += getContentTypeWithBoundary(writer, "text/plain", "UTF-8", "8bit")
