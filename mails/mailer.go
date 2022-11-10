@@ -5,7 +5,8 @@ type Mailable interface {
 	BuildSubject() string
 	BuildHTMLBody() string
 	BuildTextBody() string
-	BuildHeader() string
+	BuildHeader() map[string]string
+	CallbackFunc() func(args ...interface{})
 }
 
 type MailProvider interface {
@@ -17,15 +18,14 @@ type MailProvider interface {
 type Mailer struct {
 	MailProvider MailProvider
 	Recipient    Recipient
-	From       From
-	FromDefault From
+	From         From
+	FromDefault  From
 }
 
 // NewMailer creating new mailer
 func NewMailer(provider MailProvider, from From) *Mailer {
 	return &Mailer{MailProvider: provider, From: from, FromDefault: from}
 }
-
 
 // Provider Set provider
 func (m *Mailer) Provider(provider MailProvider) *Mailer {
@@ -87,10 +87,11 @@ func (m *Mailer) Bcc(bcc ...string) *Mailer {
 // Send Send Email
 func (m *Mailer) Send(mailable Mailable) error {
 	mailContent := MailContent{
-		Subject:  mailable.BuildSubject(),
-		HtmlBody: mailable.BuildHTMLBody(),
-		TextBody: mailable.BuildTextBody(),
-		Header:   mailable.BuildHeader(),
+		Subject:      mailable.BuildSubject(),
+		HtmlBody:     mailable.BuildHTMLBody(),
+		TextBody:     mailable.BuildTextBody(),
+		Header:       mailable.BuildHeader(),
+		CallbackFunc: mailable.CallbackFunc(),
 	}
 	return m.MailProvider.Send(m.Recipient, m.From, mailContent)
 }

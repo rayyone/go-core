@@ -32,7 +32,8 @@ type MailContent struct {
 	Subject  string
 	HtmlBody string
 	TextBody string
-	Header    string
+	Header   map[string]string
+	CallbackFunc func(args ...interface{})
 }
 
 func (m *SMTPMailer) Send(recipient Recipient, from From, content MailContent) error {
@@ -91,14 +92,11 @@ func (m *SMTPMailer) buildMessage(recipient Recipient, from From, content MailCo
 	if len(recipient.Bcc) > 0 {
 		msg += fmt.Sprintf("Bcc: %s\r\n", strings.Join(recipient.Bcc, ";"))
 	}
-	mailHeader := content.Header
-	if len(mailHeader) > 0 {
-		mailHeader = mailHeader + "\r\n"
-	}
+
 	msg += "Subject: " + content.Subject + "\r\n"
 	msg += "MIME-version: 1.0;"
 	msg += getAlternativeMultipartStart(writer)
-	msg += mailHeader
+	msg += m.buildCustomHeader(content)
 	msg += getContentTypeWithBoundary(writer, "text/plain", "UTF-8", "8bit")
 	msg += "\r\n" + content.TextBody
 	msg += getContentTypeWithBoundary(writer, "text/html", "UTF-8", "8bit")
@@ -107,7 +105,16 @@ func (m *SMTPMailer) buildMessage(recipient Recipient, from From, content MailCo
 
 	return msg
 }
-
+func (m *SMTPMailer) buildCustomHeader(content MailContent) string {
+	if len(content.Header) > 0 {
+		mailHeader := ""
+		for k, v := range content.Header {
+			mailHeader += fmt.Sprintf("%s: %s\r\n", k, v)
+		}
+		return mailHeader
+	}
+	return ""
+}
 func (m *SMTPMailer) buildCalendarInvitationMessage(recipient Recipient, from From, content MailContent, options *CalendarEventOption) string {
 	mixedBoundaryWriter := multipart.NewWriter(bytes.NewBufferString(""))
 	alternativeBoundaryWriter := multipart.NewWriter(bytes.NewBufferString(""))
@@ -127,6 +134,7 @@ func (m *SMTPMailer) buildCalendarInvitationMessage(recipient Recipient, from Fr
 	msg += getMixedMultipartStart(mixedBoundaryWriter)
 	msg += getMultipartBoundaryOpen(mixedBoundaryWriter)
 	msg += getAlternativeMultipartStart(alternativeBoundaryWriter)
+	msg += m.buildCustomHeader(content)
 	msg += getContentTypeWithBoundary(alternativeBoundaryWriter, "text/plain", "UTF-8", "8bit")
 	msg += "\r\n" + content.TextBody
 	msg += getContentTypeWithBoundary(alternativeBoundaryWriter, "text/html", "UTF-8", "8bit")
