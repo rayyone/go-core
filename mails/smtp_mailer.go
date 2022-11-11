@@ -29,6 +29,8 @@ type From struct {
 }
 
 type MailContent struct {
+	Recipient Recipient
+	From From
 	Subject  string
 	HtmlBody string
 	TextBody string
@@ -36,21 +38,21 @@ type MailContent struct {
 	CallbackFunc func(args ...interface{})
 }
 
-func (m *SMTPMailer) Send(recipient Recipient, from From, content MailContent) error {
-	smtpAuth := smtp.PlainAuth(from.Name, m.config.User, m.config.Password, m.config.Host)
+func (m *SMTPMailer) Send(content MailContent) error {
+	smtpAuth := smtp.PlainAuth(content.From.Name, m.config.User, m.config.Password, m.config.Host)
 	smtpAddr := fmt.Sprintf("%s:%d", m.config.Host, m.config.Port)
 
 	//msg := m.buildMessage(recipient, subject, htmlBody, textBody)
-	msg := m.buildMessage(recipient, from, content)
+	msg := m.buildMessage(content.Recipient, content.From, content)
 
 	start := time.Now()
 	loghelper.PrintYellowf(
 		"[SMTP] Sending email to: %s, cc: %s, bcc: %s",
-		strings.Join(recipient.To, ", "),
-		strings.Join(recipient.Cc, ", "),
-		strings.Join(recipient.Bcc, ", "),
+		strings.Join(content.Recipient.To, ", "),
+		strings.Join(content.Recipient.Cc, ", "),
+		strings.Join(content.Recipient.Bcc, ", "),
 	)
-	err := smtp.SendMail(smtpAddr, smtpAuth, m.config.User, recipient.To, []byte(msg))
+	err := smtp.SendMail(smtpAddr, smtpAuth, m.config.User, content.Recipient.To, []byte(msg))
 	if err != nil {
 		loghelper.PrintRedf("[SMTP] Send email completed with error in %.2fs", time.Since(start).Seconds())
 		return ryerr.NewAndDontReport(fmt.Sprintf("Error: Cannot send email via SMTP provider. Error: %v", err))
@@ -60,13 +62,13 @@ func (m *SMTPMailer) Send(recipient Recipient, from From, content MailContent) e
 	return nil
 }
 
-func (m *SMTPMailer) SendWithCalendarEvent(recipient Recipient, from From, content MailContent, options *CalendarEventOption) error {
-	smtpAuth := smtp.PlainAuth(from.Name, m.config.User, m.config.Password, m.config.Host)
+func (m *SMTPMailer) SendWithCalendarEvent(content MailContent, options *CalendarEventOption) error {
+	smtpAuth := smtp.PlainAuth(content.From.Name, m.config.User, m.config.Password, m.config.Host)
 	smtpAddr := fmt.Sprintf("%s:%d", m.config.Host, m.config.Port)
 
-	msg := m.buildCalendarInvitationMessage(recipient, from, content, options)
+	msg := m.buildCalendarInvitationMessage(content.Recipient, content.From, content, options)
 
-	err := smtp.SendMail(smtpAddr, smtpAuth, m.config.User, recipient.To, []byte(msg))
+	err := smtp.SendMail(smtpAddr, smtpAuth, m.config.User, content.Recipient.To, []byte(msg))
 	if err != nil {
 		return ryerr.NewAndDontReport(fmt.Sprintf("Error: Cannot send email via SMTP provider. Error: %v", err))
 	}
