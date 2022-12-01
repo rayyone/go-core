@@ -9,6 +9,7 @@ import (
 	"github.com/getsentry/sentry-go"
 	"github.com/pkg/errors"
 	loghelper "github.com/rayyone/go-core/helpers/log"
+	ry_slack "github.com/rayyone/go-core/helpers/slack"
 	"gorm.io/gorm"
 )
 
@@ -141,8 +142,13 @@ func (c Err) Report() {
 
 	sentry.ConfigureScope(func(scope *sentry.Scope) {
 		scope.SetExtra("stack_trace", stackTrace)
+
 	})
-	sentry.CaptureException(c)
+	eventId := sentry.CaptureException(c)
+	slackMsg := fmt.Sprintf("*%s*\n", c.Error())
+	slackMsg += fmt.Sprintf("*EventID:* %s\n", *eventId)
+
+	ry_slack.SendSimpleMessage("ry-api error", slackMsg)
 }
 
 // New creates a no type error and report to sentry

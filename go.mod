@@ -15,6 +15,7 @@ require (
 	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3
 	gorm.io/driver/postgres v1.4.5
 	gorm.io/gorm v1.22.4
+	github.com/slack-go/slack v0.11.3
 )
 
 require (
