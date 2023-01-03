@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
@@ -63,6 +64,24 @@ func InitDB(config *Configuration) *gorm.DB {
 			config.Password,
 		)
 		DB, err = gorm.Open(postgres.Open(dbConString), &gorm.Config{
+			Logger: logger.Default.LogMode(config.DBLogLevel),
+			NamingStrategy: schema.NamingStrategy{
+				NameReplacer: TableNameReplacer{}, // use name replacer to change struct/field name before convert it to db name
+			},
+		})
+
+		if err != nil {
+			log.Printf("Error when connecting to postgres db, %s", err)
+		}
+	case "mysql":
+		dbConString := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Locals",
+			config.User,
+			config.Password,
+			config.Host,
+			config.Port,
+			config.Name,
+		)
+		DB, err = gorm.Open(mysql.Open(dbConString), &gorm.Config{
 			Logger: logger.Default.LogMode(config.DBLogLevel),
 			NamingStrategy: schema.NamingStrategy{
 				NameReplacer: TableNameReplacer{}, // use name replacer to change struct/field name before convert it to db name
