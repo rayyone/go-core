@@ -73,6 +73,7 @@ func getMimeTypeMap() map[string][]string {
 		"pdf":   {"application/pdf"},
 		"image": {"image/jpg", "image/jpeg", "image/png", "image/gif", "image/svg+xml"},
 		"video": {"video/x-flv", "video/mp4", "application/x-mpegURL", "video/MP2T", "video/3gpp", "video/quicktime", "video/x-msvideo", "video/x-ms-wmv"},
+		"csv": {"text/plain", "application/vnd.ms-excel", "text/x-csv", "text/csv", "application/csv", "application/x-csv", "text/comma-separated-values", "text/x-comma-separated-values", "text/tab-separated-values"},
 	}
 }
 
