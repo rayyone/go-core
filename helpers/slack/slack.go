@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/slack-go/slack"
+	"sync"
 )
 
 type SlackConfig struct {
@@ -14,8 +15,8 @@ type SlackConfig struct {
 type Slack struct {
 	api *slack.Client
 	config SlackConfig
-	//options map[string]interface{}
-	//optionRWLock sync.RWMutex
+	options map[string]interface{}
+	optionRWLock sync.RWMutex
 }
 var (
 	currentSlackClient = NewSlackClient("", SlackConfig{})
@@ -29,8 +30,8 @@ func NewSlackClient(token string, config SlackConfig) *Slack {
 	return &Slack{
 		api: api,
 		config: config,
-		//options: map[string]interface{}{},
-		//optionRWLock: sync.RWMutex{},
+		options: map[string]interface{}{},
+		optionRWLock: sync.RWMutex{},
 	}
 }
 
@@ -40,19 +41,19 @@ func InitSlackClient(config SlackConfig) error {
 	slackClient.config = config
 	return nil
 }
-//func (s *Slack) SetOption(key string, value interface{}) {
-//	s.optionRWLock.RLock()
-//	s.options[key] = value
-//	s.optionRWLock.RUnlock()
-//}
-//
-//func (s *Slack) GetOption(key string) interface{} {
-//	val, ok := s.options[key]
-//	if !ok {
-//		return nil
-//	}
-//	return val
-//}
+func (s *Slack) SetOption(key string, value interface{}) {
+	s.optionRWLock.RLock()
+	s.options[key] = value
+	s.optionRWLock.RUnlock()
+}
+
+func (s *Slack) GetOption(key string) interface{} {
+	val, ok := s.options[key]
+	if !ok {
+		return nil
+	}
+	return val
+}
 
 func (s *Slack) SendSimpleMessageToChannel(channel string, title string, message string) error {
 	if s.config.Token == "" {
