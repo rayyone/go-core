@@ -1,6 +1,7 @@
 package corecontainer
 
 import (
+	"context"
 	"github.com/rayyone/go-core/ryerr"
 	"gorm.io/gorm"
 )
@@ -21,6 +22,10 @@ func (d *Database) GetTx() *gorm.DB {
 func (d *Database) BeginTransaction() {
 	d.dbTransaction = d.db.Begin()
 	d.transactionOpened = true
+}
+
+func (d *Database) SetContext(ctx context.Context) {
+	d.db = d.db.WithContext(ctx)
 }
 
 func (d *Database) Commit() error {
