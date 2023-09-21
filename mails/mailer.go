@@ -19,10 +19,14 @@ type Mailer struct {
 	MailProvider MailProvider
 	From         From
 }
-
+var mailer *Mailer
+func GetCurrentMailer() *Mailer {
+	return mailer
+}
 // NewMailer creating new mailer
 func NewMailer(provider MailProvider, from From) *Mailer {
-	return &Mailer{MailProvider: provider, From: from}
+	mailer = &Mailer{MailProvider: provider, From: from}
+	return mailer
 }
 
 // Provider Set provider

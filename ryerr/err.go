@@ -152,6 +152,11 @@ func (c Err) Report() {
 			slackMsg += fmt.Sprintf("<%s?query=%s|See more detail>", sentryProjectUrl, *eventId)
 		}
 	}
+	ignoreErrorOption := ry_slack.CurrentSlackClient().GetOption("ignore_error")
+	ignoreError, ok := ignoreErrorOption.(bool)
+	if ok && ignoreError {
+		return
+	}
 	if errChannel := ry_slack.CurrentSlackClient().GetOption("error_channel"); errChannel != nil {
 		ry_slack.SendSimpleMessageToChannel(errChannel.(string), "ry-api error", slackMsg)
 	} else {
