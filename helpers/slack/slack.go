@@ -5,19 +5,24 @@ import (
 	"fmt"
 	"github.com/slack-go/slack"
 	"sync"
+	"time"
 )
 
 type SlackConfig struct {
-	Token string
+	Token          string
 	DefaultChannel string
-	Environment string
+	Environment    string
+	MaxMessage     int
 }
 type Slack struct {
-	api *slack.Client
-	config SlackConfig
-	options map[string]interface{}
-	optionRWLock sync.RWMutex
+	api              *slack.Client
+	config           SlackConfig
+	options          map[string]interface{}
+	optionRWLock     sync.RWMutex
+	maxMessage       int
+	rateLimitMessage map[string]int
 }
+
 var (
 	currentSlackClient = NewSlackClient("", SlackConfig{})
 )
@@ -28,10 +33,12 @@ func CurrentSlackClient() *Slack {
 func NewSlackClient(token string, config SlackConfig) *Slack {
 	api := slack.New(token)
 	return &Slack{
-		api: api,
-		config: config,
-		options: map[string]interface{}{},
+		api:          api,
+		config:       config,
+		options:      map[string]interface{}{},
 		optionRWLock: sync.RWMutex{},
+		maxMessage: config.MaxMessage,
+		rateLimitMessage: map[string]int{},
 	}
 }
 
@@ -39,12 +46,28 @@ func InitSlackClient(config SlackConfig) error {
 	slackClient := CurrentSlackClient()
 	slackClient.api = slack.New(config.Token)
 	slackClient.config = config
+	slackClient.maxMessage = config.MaxMessage
+	slackClient.rateLimitMessage = map[string]int{}
 	return nil
 }
 func (s *Slack) SetOption(key string, value interface{}) {
 	s.optionRWLock.RLock()
 	s.options[key] = value
 	s.optionRWLock.RUnlock()
+}
+
+func (s *Slack) RateLimit() bool {
+	if s.maxMessage > 0 {
+		date := time.Now().Format("2006-01-02")
+		s.optionRWLock.RLock()
+		defer s.optionRWLock.RUnlock()
+		rateValue, ok := s.rateLimitMessage[date]
+		if ok && rateValue > s.maxMessage - 1 {
+			return false
+		}
+		s.rateLimitMessage = map[string]int{date: rateValue + 1}
+	}
+	return true
 }
 
 func (s *Slack) GetOption(key string) interface{} {
@@ -56,6 +79,9 @@ func (s *Slack) GetOption(key string) interface{} {
 }
 
 func (s *Slack) SendSimpleMessageToChannel(channel string, title string, message string) error {
+	if !s.RateLimit() {
+		return nil
+	}
 	if s.config.Token == "" {
 		return errors.New("slack client not init")
 	}
