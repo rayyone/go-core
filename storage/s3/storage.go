@@ -55,6 +55,23 @@ func (s *S3) Store(file io.Reader, filename string, filePath string, opts ...stg
 	return &result.Location, nil
 }
 
+// Delete Delete the file
+func (s *S3) Delete(fullPath string) error {
+	_, err := s.service.DeleteObject(&s3.DeleteObjectInput{Bucket: aws.String(s.config.Bucket), Key: aws.String(fullPath)})
+	if err != nil {
+		return err
+	}
+
+	err = s.service.WaitUntilObjectNotExists(&s3.HeadObjectInput{
+		Bucket: aws.String(s.config.Bucket),
+		Key:    aws.String(fullPath),
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // GetSignedUrl get signed url
 func (s *S3) GetSignedUrl(key string, expireIn time.Duration, opts ...stgoption.OptionFunc) (url string, err error) {
 	options := stgoption.GetDefaultOptions()

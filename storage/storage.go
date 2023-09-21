@@ -16,6 +16,7 @@ type Configuration struct {
 // Driver is an storage driver interface
 type Driver interface {
 	Store(file io.Reader, filename string, filePath string, opts ...stgoption.OptionFunc) (location *string, err error)
+	Delete(fullPath string) error
 }
 
 // Storage Storage
@@ -26,6 +27,11 @@ type Storage struct {
 // Store Store file based on driver
 func (s *Storage) Store(file io.Reader, filename string, filePath string, opts ...stgoption.OptionFunc) (location *string, err error) {
 	return s.driver.Store(file, filename, filePath, opts...)
+}
+
+// Delete Delete file based on driver
+func (s *Storage) Delete(fullPath string) error {
+	return s.driver.Delete(fullPath)
 }
 
 // Driver Set driver

@@ -148,9 +148,9 @@ func (c Err) Report() {
 	slackMsg := fmt.Sprintf("*%s*\n", c.Error())
 	if eventId != nil {
 		slackMsg += fmt.Sprintf("*EventID:* %s\n", *eventId)
-		if sentryProjectUrl := ry_slack.CurrentSlackClient().GetOption("sentry_project_url"); sentryProjectUrl != nil {
-			slackMsg += fmt.Sprintf("<%s?query=%s|See more detail>", sentryProjectUrl, *eventId)
-		}
+		//if sentryProjectUrl := ry_slack.CurrentSlackClient().GetOption("sentry_project_url"); sentryProjectUrl != nil {
+		//	slackMsg += fmt.Sprintf("<%s?query=%s|See more detail>", sentryProjectUrl, *eventId)
+		//}
 	}
 	ignoreErrorOption := ry_slack.CurrentSlackClient().GetOption("ignore_error")
 	ignoreError, ok := ignoreErrorOption.(bool)
@@ -161,7 +161,7 @@ func (c Err) Report() {
 		ry_slack.SendSimpleMessageToChannel(errChannel.(string), "ry-api error", slackMsg)
 	} else {
 		ry_slack.SendSimpleMessage("ry-api error", slackMsg)
-	}
+	//}
 }
 
 // New creates a no type error and report to sentry
