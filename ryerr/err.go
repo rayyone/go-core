@@ -3,8 +3,10 @@ package ryerr
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"io"
 	"runtime"
 	"strconv"
+	"time"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/pkg/errors"
@@ -34,11 +36,27 @@ type Err struct {
 	originalError error
 	contexts      []errorContext
 	stackTrace    []string
+	report        bool
 }
 
 type errorContext struct {
 	Field   string
 	Message string
+}
+
+func writeLog(msg string, args ...interface{}) {
+	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	fullMsg := fmt.Sprintf("[%s] %s", timestamp, msg)
+	errLogger := gin.DefaultErrorWriter
+	for _, arg := range args {
+		if w, ok := arg.(io.Writer); ok {
+			if w == gin.DefaultWriter || w == gin.DefaultErrorWriter {
+				errLogger = w
+				break
+			}
+		}
+	}
+	errLogger.Write([]byte(fullMsg + "\n"))
 }
 
 func (c Err) Error() string {
@@ -49,8 +67,8 @@ func (c Err) Error() string {
 func (errorType ErrorType) New(msg string) error {
 	loghelper.PrintRed(msg)
 	shouldReport := shouldReport(errorType)
-	errLogger := gin.DefaultErrorWriter
-	errLogger.Write([]byte(msg + "\n"))
+
+	writeLog(msg)
 
 	customErr := Err{errorType: errorType, originalError: errors.New(msg), stackTrace: []string{msg}}
 	if shouldReport {
@@ -63,8 +81,8 @@ func (errorType ErrorType) New(msg string) error {
 // NewAndReport creates a new Err and report
 func (errorType ErrorType) NewAndReport(msg string) error {
 	loghelper.PrintRed(msg)
-	errLogger := gin.DefaultErrorWriter
-	errLogger.Write([]byte(msg + "\n"))
+
+	writeLog(msg)
 	customErr := Err{errorType: errorType, originalError: errors.New(msg), stackTrace: []string{msg}}
 	customErr.Report()
 
@@ -76,8 +94,8 @@ func (errorType ErrorType) Newf(msg string, args ...interface{}) error {
 	out := fmt.Sprintf(msg, args...)
 	loghelper.PrintRed(out)
 	shouldReport := shouldReport(errorType)
-	errLogger := gin.DefaultErrorWriter
-	errLogger.Write([]byte(out + "\n"))
+
+	writeLog(out)
 
 	customErr := Err{errorType: errorType, originalError: fmt.Errorf(msg, args...), stackTrace: []string{msg}}
 	if shouldReport {
@@ -91,8 +109,8 @@ func (errorType ErrorType) Newf(msg string, args ...interface{}) error {
 func (errorType ErrorType) NewfAndReport(msg string, args ...interface{}) error {
 	out := fmt.Sprintf(msg, args...)
 	loghelper.PrintRed(out)
-	errLogger := gin.DefaultErrorWriter
-	errLogger.Write([]byte(out + "\n"))
+
+	writeLog(out)
 
 	customErr := Err{errorType: errorType, originalError: fmt.Errorf(msg, args...), stackTrace: []string{msg}}
 	customErr.Report()
@@ -137,8 +155,8 @@ func (c Err) Report() {
 		stackTrace = append(stackTrace, traceMsg)
 		fullText += traceMsg + "\n"
 	}
-	errLogger := gin.DefaultErrorWriter
-	errLogger.Write([]byte(fullText))
+
+	writeLog(fullText)
 
 	sentry.ConfigureScope(func(scope *sentry.Scope) {
 		scope.SetExtra("stack_trace", stackTrace)
@@ -167,8 +185,8 @@ func (c Err) Report() {
 // New creates a no type error and report to sentry
 func New(msg string) error {
 	loghelper.PrintRed(msg)
-	errLogger := gin.DefaultErrorWriter
-	errLogger.Write([]byte(msg + "\n"))
+
+	writeLog(msg)
 	err := Err{errorType: NoType, originalError: errors.New(msg)}
 
 	err.Report()
@@ -179,8 +197,8 @@ func New(msg string) error {
 // NewAndDontReport creates a new Err and don't report it
 func NewAndDontReport(msg string) error {
 	loghelper.PrintRed(msg)
-	errLogger := gin.DefaultErrorWriter
-	errLogger.Write([]byte(msg + "\n"))
+
+	writeLog(msg)
 	err := Err{errorType: NoType, originalError: errors.New(msg)}
 
 	return err
@@ -190,8 +208,8 @@ func NewAndDontReport(msg string) error {
 func Newf(msg string, args ...interface{}) error {
 	out := fmt.Sprintf(msg, args...)
 	loghelper.PrintRed(out)
-	errLogger := gin.DefaultErrorWriter
-	errLogger.Write([]byte(out + "\n"))
+
+	writeLog(out)
 	err := Err{errorType: NoType, originalError: errors.New(out)}
 
 	err.Report()
