@@ -1,103 +1,120 @@
 package mails
 
-// Mailable represent mail interface
 type Mailable interface {
-	BuildSubject() string
-	BuildHTMLBody() string
-	BuildTextBody() string
-	BuildHeader() map[string]string
-	CallbackFunc() func(args ...interface{})
+	Subject() string
+	HTMLBody() string
+	TextBody() string
+	Header() map[string]string
+	Attachments() []Attachment
+}
+type From struct {
+	Address string
+	Name    string
+}
+type Envelope struct {
+	To   []string
+	Cc   []string
+	Bcc  []string
+	From *From
+}
+type Message struct {
+	Envelope
+	Subject     string
+	Text        string
+	HTML        string
+	Attachments []Attachment
+	Header      map[string]string
 }
 
 type MailProvider interface {
-	Send(content MailContent) error
-	SendWithCalendarEvent(content MailContent, options *CalendarEventOption) error
+	Send(content Message) error
 }
 
-// Mailer Mailer
 type Mailer struct {
 	MailProvider MailProvider
-	From         From
 }
+
+type MailBuilder struct {
+	Mailer
+	Message Message
+}
+
 var mailer *Mailer
-func GetCurrentMailer() *Mailer {
+
+func NewMailer(provider MailProvider) *Mailer {
+	mailer = &Mailer{MailProvider: provider}
 	return mailer
 }
-// NewMailer creating new mailer
-func NewMailer(provider MailProvider, from From) *Mailer {
-	mailer = &Mailer{MailProvider: provider, From: from}
-	return mailer
+func (m *Mailer) Send(msg Message) error {
+	return m.MailProvider.Send(msg)
 }
 
-// Provider Set provider
-func (m *Mailer) Provider(provider MailProvider) *Mailer {
-	return NewMailer(provider, m.From)
+func (m *Mailer) SendMailable(envelope Envelope, mailable Mailable) error {
+	msg := Message{Envelope: envelope}
+	msg.HTML = mailable.HTMLBody()
+	msg.Text = mailable.TextBody()
+	msg.Subject = mailable.Subject()
+	msg.Header = mailable.Header()
+	msg.Attachments = mailable.Attachments()
+	return m.MailProvider.Send(msg)
 }
-
-func (m *Mailer) GetContent(mailable Mailable) MailContent {
-	return MailContent{
-		Subject:      mailable.BuildSubject(),
-		HtmlBody:     mailable.BuildHTMLBody(),
-		TextBody:     mailable.BuildTextBody(),
-		Header:       mailable.BuildHeader(),
-		CallbackFunc: mailable.CallbackFunc(),
-		From: m.From,
+func (m *Mailer) MailBuilder() *MailBuilder {
+	var mailBuilder MailBuilder
+	mailBuilder.MailProvider = m.MailProvider
+	return &mailBuilder
+}
+func (m *MailBuilder) To(to string) *MailBuilder {
+	if m.Message.To == nil {
+		m.Message.To = []string{to}
+	} else {
+		m.Message.To = append(m.Message.To, to)
 	}
+	return m
 }
-
-// Send Send Email
-func (m *Mailer) Send(mailContent MailContent) error {
-	return m.MailProvider.Send(mailContent)
+func (m *MailBuilder) From(from From) *MailBuilder {
+	m.Message.From = &from
+	return m
 }
-
-// Send Send Email
-func (m *Mailer) SendWithCalendarEvent(mailContent MailContent, options *CalendarEventOption) error {
-
-	return m.MailProvider.SendWithCalendarEvent(mailContent, options)
+func (m *MailBuilder) Bcc(bcc string) *MailBuilder {
+	if m.Message.Bcc == nil {
+		m.Message.Bcc = []string{bcc}
+	} else {
+		m.Message.Bcc = append(m.Message.Bcc, bcc)
+	}
+	return m
 }
-
-func (c *MailContent) SetFrom(from From) *MailContent {
-	c.From = from
-	return c
+func (m *MailBuilder) Cc(cc string) *MailBuilder {
+	if m.Message.Cc == nil {
+		m.Message.Cc = []string{cc}
+	} else {
+		m.Message.Cc = append(m.Message.Cc, cc)
+	}
+	return m
 }
-
-// AddTo Add to
-func (c MailContent) AddTo(to string) MailContent {
-	c.Recipient.To = append(c.Recipient.To, to)
-
-	return c
+func (m *MailBuilder) Subject(subject string) *MailBuilder {
+	m.Message.Subject = subject
+	return m
 }
-
-// To Set to
-func (c MailContent) To(to ...string) MailContent {
-	c.Recipient.To = to
-
-	return c
+func (m *MailBuilder) HTML(html string) *MailBuilder {
+	m.Message.HTML = html
+	return m
 }
-
-// AddCc Add cc
-func (c MailContent) AddCc(cc string) MailContent {
-	c.Recipient.Cc = append(c.Recipient.Cc, cc)
-
-	return c
+func (m *MailBuilder) Text(text string) *MailBuilder {
+	m.Message.Text = text
+	return m
 }
-
-// Cc Set cc
-func (c MailContent) Cc(cc ...string) MailContent {
-	c.Recipient.Cc = cc
-
-	return c
+func (m *MailBuilder) Header(header map[string]string) *MailBuilder {
+	m.Message.Header = header
+	return m
 }
-
-// AddBcc Add bcc
-func (c MailContent) AddBcc(bcc string) MailContent {
-	c.Recipient.Bcc = append(c.Recipient.Bcc, bcc)
-
-	return c
+func (m *MailBuilder) Attachment(attachment Attachment) *MailBuilder {
+	if m.Message.Attachments == nil {
+		m.Message.Attachments = []Attachment{attachment}
+	} else {
+		m.Message.Attachments = append(m.Message.Attachments, attachment)
+	}
+	return m
 }
-
-// Bcc Set bcc
-func (c MailContent) Bcc(bcc ...string) MailContent {
-	c.Recipient.Bcc = bcc
-	return c
+func (m *MailBuilder) Deliver() error {
+	return m.Send(m.Message)
 }
