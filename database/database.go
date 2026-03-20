@@ -2,12 +2,13 @@ package database
 
 import (
 	"fmt"
-	"gorm.io/driver/postgres"
+	"log"
+
 	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
-	"log"
 )
 
 // DB global var
@@ -22,8 +23,61 @@ type Configuration struct {
 	Port       string
 	LogLevel   string
 	DBLogLevel logger.LogLevel
+
+	SSLMode       *string
+	SSLRootCert   *string
+	SSLCert       *string
+	SSLKey        *string
+	SSLServerName *string
+
+	TimeZone *string
+	Params   map[string]*string
+
+	MaxOpenConns    *int
+	MaxIdleConns    *int
+	ConnMaxLifetime *int
 }
 
+func (c Configuration) DSN() string {
+	sslMode := "require"
+	if c.SSLMode != nil {
+		sslMode = *c.SSLMode
+	}
+
+	dsn := fmt.Sprintf(
+		"host=%s port=%s user=%s dbname=%s password=%s sslmode=%s",
+		c.Host,
+		c.Port,
+		c.User,
+		c.Name,
+		c.Password,
+		sslMode,
+	)
+
+	if c.SSLRootCert != nil {
+		dsn += fmt.Sprintf(" sslrootcert=%s", *c.SSLRootCert)
+	}
+	if c.SSLCert != nil {
+		dsn += fmt.Sprintf(" sslcert=%s", *c.SSLCert)
+	}
+	if c.SSLKey != nil {
+		dsn += fmt.Sprintf(" sslkey=%s", *c.SSLKey)
+	}
+	if c.SSLServerName != nil {
+		dsn += fmt.Sprintf(" sslservername=%s", *c.SSLServerName)
+	}
+	if c.TimeZone != nil {
+		dsn += fmt.Sprintf(" TimeZone=%s", *c.TimeZone)
+	}
+
+	for k, v := range c.Params {
+		if v != nil {
+			dsn += fmt.Sprintf(" %s=%s", k, *v)
+		}
+	}
+
+	return dsn
+}
 func NewConfiguration(config *Configuration) *Configuration {
 	logLevelMap := map[string]logger.LogLevel{
 		"Silent": logger.Silent,
@@ -56,13 +110,7 @@ func InitDB(config *Configuration) *gorm.DB {
 
 	switch config.Driver {
 	case "postgres":
-		dbConString := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable password=%s",
-			config.Host,
-			config.Port,
-			config.User,
-			config.Name,
-			config.Password,
-		)
+		dbConString := config.DSN()
 		DB, err = gorm.Open(postgres.Open(dbConString), &gorm.Config{
 			Logger: logger.Default.LogMode(config.DBLogLevel),
 			NamingStrategy: schema.NamingStrategy{
